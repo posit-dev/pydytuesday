@@ -12,10 +12,10 @@ setup(
         author="Andreas Varotsis",
         author_email="andreas.varotsis@gmail.com>",
         description=DESCRIPTION,
-        long_description= open('README.rst').read(),,
+        long_description= open('README.rst').read(),
         packages=find_packages(),
         license='MIT',
-        install_requires=[json, requests], # add any additional packages that 
+        install_requires=[], # add any additional packages that 
         # needs to be installed along with your package. Eg: 'caer'
         keywords=['python', 'Tidy Tuesday', 'learning'],
         classifiers= [
