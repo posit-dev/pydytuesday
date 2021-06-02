@@ -1,1 +1,2 @@
-from PyDyTuesday import get_date, get_week
+from get_date import get_date
+from get_week import get_week
