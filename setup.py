@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.1' 
+VERSION = '0.0.3' 
 DESCRIPTION = 'A Python port of the TidyTuesday Downloader'
 LONG_DESCRIPTION = 'A port of the tidytuesdayR package to download TidyTuesday datasets'
 
@@ -10,7 +10,7 @@ setup(
         name="PyDyTuesday", 
         version=VERSION,
         author="Andreas Varotsis",
-        author_email="andreas.varotsis@gmail.com>",
+        author_email="andreas.varotsis@gmail.com",
         description=DESCRIPTION,
         long_description= open('README.rst').read(),
         packages=find_packages(),
