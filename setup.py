@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-VERSION = '0.0.3' 
+VERSION = '0.0.4' 
 DESCRIPTION = 'A Python port of the TidyTuesday Downloader'
 LONG_DESCRIPTION = 'A port of the tidytuesdayR package to download TidyTuesday datasets'
 

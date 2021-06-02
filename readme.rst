@@ -5,6 +5,7 @@ PyDyTuesday Downloader
 A Python library to automatically download TidyTuesday datasets, inspired by the tidytuesdayR package for r.
 
 The package is best installed directly from github 
+
 .. code:: python
 
     pip install git+https://github.com/AndreasThinks/PyDyTuesday#egg=PyDyTuesday
