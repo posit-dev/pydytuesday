@@ -1,6 +1,6 @@
 # PidyTuesday
 
-PidyTuesday is a Python library that ports the functionality of the TidyTuesday CRAN package to Python. It provides a suite of command-line tools for accessing and processing TidyTuesday datasets hosted on GitHub.
+PidyTuesday is a Python library that ports the functionality of the TidyTuesday CRAN package to Python. It provides a suite of command-line tools for accessing and downloading TidyTuesday datasets hosted on GitHub.
 
 ## Features
 
@@ -16,12 +16,14 @@ PidyTuesday is a Python library that ports the functionality of the TidyTuesday 
 
 We make extensive use of uv and uv tools to enable command-line scripts without too much managing of virtual environments.
 
+Please note the **PyPi library is case sensitive** - you must use **PyDyTuesday**.
+
 1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 2. Install PyDyTuesday to your commandline by using `uv tool install`
 
    ```bash
-   uv tool install pydytuesday
+   uv tool install PyDyTuesday
 
    pydytuesday last-tuesday
    ```
@@ -29,11 +31,11 @@ We make extensive use of uv and uv tools to enable command-line scripts without 
 Alternatively, you can use `uv tool` or `uvx` to avoid adding the command to your path.
 
    ```bash
-   uv tool pydytuesday last-tuesday
+   uv tool PyDyTuesday last-tuesday
    ```
    or using uvx:
    ```bash
-   uvx pydytuesday last-tuesday
+   uvx PyDyTuesday last-tuesday
    ```
 
 ### Using pip
@@ -54,7 +56,7 @@ Alternatively, you can install the library directly into your environment using 
    ```bash
    python -m pydytuesday
    ```
-   (Consult your system’s documentation on how entry points are installed if you encounter issues.)
+   (Consult your system's documentation on how entry points are installed if you encounter issues.)
 
 ## Usage
 
@@ -84,74 +86,82 @@ Once you have installed the library using uv, you should be able to run your com
     ```
     (Example passes the year as an argument.)
 
-- **Load GitHub Metadata**
-  - **Description:** Loads TidyTuesday metadata from GitHub for a given date or year.
-  - **Usage:**
-    ```bash
-    pydytuesday tt-load-gh 2025-03-10
-    pydytuesday tt-load-gh 2025 3
-    ```
-    (The first example uses a date string; the second example uses a year and a week number.)
-
 - **Download Specific File**
-  - **Description:** Downloads a specified file from a TidyTuesday dataset.
+  - **Description:** Downloads a specified file from a TidyTuesday dataset by date.
   - **Usage:**
     ```bash
-    pydytuesday tt-download-file data.csv
-    pydytuesday tt-download-file 0
+    pydytuesday tt-download-file 2025-03-10 data.csv
     ```
-    (The first example passes the file name; the second example passes the file index.)
+    (The example downloads the file 'data.csv' from the dataset for March 10, 2025.)
 
 - **Download Dataset Files**
-  - **Description:** Downloads all or selected files from a TidyTuesday dataset.
+  - **Description:** Downloads all or selected files from a TidyTuesday dataset by date.
   - **Usage:**
     ```bash
-    pydytuesday tt-download All
-    pydytuesday tt-download data.csv summary.json
+    pydytuesday tt-download 2025-03-10
+    pydytuesday tt-download 2025-03-10 data.csv summary.json
     ```
-    (Example shows using "All" or a list of specific file names.)
-
-- **Load Complete Dataset**
-  - **Description:** Loads the entire TidyTuesday dataset, including metadata and files.
-  - **Usage:**
-    ```bash
-    pydytuesday tt-load 2025-03-10
-    pydytuesday tt-load 2025 3 All
-    ```
-    (The first example uses a date string; the second example uses a year, week number, and optionally file selection.)
+    (The first example downloads all files from the dataset for March 10, 2025. The second example downloads only the specified files.)
 
 - **Display Dataset README**
   - **Description:** Opens the README for a TidyTuesday dataset in your default web browser.
   - **Usage:**
     ```bash
-    pydytuesday readme
+    pydytuesday readme 2025-03-10
     ```
+    (The example opens the README for the dataset from March 10, 2025.)
 
 - **Check GitHub Rate Limit**
   - **Description:** Checks the remaining GitHub API rate limit.
   - **Usage:**
     ```bash
-    pydytuesday rate-limit
+    pydytuesday rate-limit-check
     ```
 
-- **Get Data by Date**
-  - **Description:** Retrieves data for a specific week given as a date string.
-  - **Usage:**
-    ```bash
-    pydytuesday get-date 2025-03-10
-    ```
+## Example Workflow
 
-- **Get Data by Week Number**
-  - **Description:** Retrieves data for a specified week number within a given year.
-  - **Usage:**
-    ```bash
-    pydytuesday get-week 2025 3
-    ```
-    (The command takes a year and a week number as arguments.)
+Here's a complete example of how to discover, download, and explore TidyTuesday data:
+
+```bash
+# 1. Find the most recent Tuesday date
+pydytuesday last-tuesday
+# Output: 2025-03-11
+
+# 2. List available datasets for a specific year
+pydytuesday tt-datasets 2025
+# Output: Lists all datasets for 2025 with dates and titles
+
+# 3. Download a specific file from a dataset by date
+pydytuesday tt-download-file 2025-03-11 example.csv
+# Output: Successfully saved example.csv to /path/to/example.csv
+
+# 4. After downloading, you can read the CSV file using pandas in Python:
+import pandas as pd
+
+# Read the downloaded CSV file
+df = pd.read_csv("example.csv")
+
+# Display the first few rows
+print(df.head())
+
+# Get basic information about the dataset
+print(df.info())
+
+# Generate summary statistics
+print(df.describe())
+
+# Perform data analysis and visualization
+import matplotlib.pyplot as plt
+df.plot(kind='bar', x='category', y='value')
+plt.title('TidyTuesday Data Analysis')
+plt.show()
+```
+
+This workflow demonstrates how to use the command-line tools to discover and download data, and then use pandas to analyze the downloaded data.
 
 ## Contributing
 
-Contributions are welcome! Here’s how you can help improve PidyTuesday:
+Contributions are welcome! Here's how you can help improve PidyTuesday:
 
 1. **Fork the Repository:**  
    Click on the "Fork" button at the top right of the repository page and create your own copy.
@@ -169,7 +179,7 @@ Contributions are welcome! Here’s how you can help improve PidyTuesday:
    ```
 
 4. **Make Your Changes:**  
-   Add new features, fix bugs, or improve documentation. Ensure your code adheres to the project’s style guidelines.
+   Add new features, fix bugs, or improve documentation. Ensure your code adheres to the project's style guidelines.
    
 5. **Commit Your Changes:**  
    Write clear commit messages that describe your changes:
@@ -187,38 +197,6 @@ Contributions are welcome! Here’s how you can help improve PidyTuesday:
    Open a pull request on the main repository. Provide a detailed description of your changes and reference any issues your PR addresses.
 
 For larger contributions, consider discussing your ideas by opening an issue first so that we can provide guidance before you start coding.
-
-## Example Workflow
-
-Here's a complete example of how to discover, download, and explore TidyTuesday data:
-
-```bash
-# 1. Find the most recent Tuesday date
-pydytuesday last-tuesday
-# Output: 2025-03-11
-
-# 2. List available datasets for a specific year
-pydytuesday tt-datasets 2025
-# Output: Lists all datasets for 2025 with dates and titles
-
-# 3. Load metadata for a specific dataset
-data=$(pydytuesday tt-load-gh 2025-03-11)
-
-# 4. View the README for the dataset
-pydytuesday readme "$data"
-# This will open the README in your default web browser
-
-# 5. Download all files from the dataset
-pydytuesday tt-download "$data" All
-
-# 6. Or download a specific file
-pydytuesday tt-download-file "$data" "example.csv"
-
-# 7. Alternatively, load and download in one step
-all_data=$(pydytuesday tt-load 2025-03-11)
-```
-
-This workflow demonstrates how the commands work together to provide a complete data exploration experience.
 
 ## License
 

@@ -20,6 +20,7 @@ class TidyTuesdayPy:
     GITHUB_API_URL = "https://api.github.com/repos/rfordatascience/tidytuesday/contents/data"
     RAW_GITHUB_URL_MASTER = "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data"
     RAW_GITHUB_URL_MAIN = "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data"
+    RAW_GITHUB_URL_REFS_MAIN = "https://raw.githubusercontent.com/rfordatascience/tidytuesday/refs/heads/main/data"
     
     def __init__(self):
         """Initialize the TidyTuesdayPy class."""
@@ -237,42 +238,23 @@ class TidyTuesdayPy:
             print(f"Error fetching datasets for year {year}: {e}")
             return []
     
-    def tt_load_gh(self, date_or_year: Union[str, int], week: Optional[int] = None) -> Dict[str, Any]:
+    def _get_dataset_metadata(self, date: str) -> Dict[str, Any]:
         """
-        Load TidyTuesday metadata from GitHub.
+        Get metadata for a TidyTuesday dataset by date.
         
         Args:
-            date_or_year: Either a date string (YYYY-MM-DD) or a year (YYYY)
-            week: If date_or_year is a year, which week number to use
+            date: Date string in YYYY-MM-DD format
             
         Returns:
-            A dictionary with metadata about the TidyTuesday dataset
+            Dictionary with dataset metadata
         """
-        if self.rate_limit_check(quiet=True) < 5:
-            print("GitHub API rate limit is too low. Try again later.")
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
+            print(f"Invalid date format: {date}. Use YYYY-MM-DD format.")
             return {}
         
+        year = date[:4]
+        
         try:
-            # Handle year and week number
-            if week is not None:
-                year = str(date_or_year)
-                # Get list of weeks for the year
-                datasets = self.tt_datasets(year, print_output=False)
-                if not datasets:
-                    print(f"No datasets found for year {year}")
-                    return {}
-                
-                if week < 1 or week > len(datasets):
-                    print(f"Week number {week} is out of range for year {year}")
-                    return {}
-                
-                # Adjust for 0-based indexing
-                date = datasets[week - 1]["date"]
-            else:
-                # Handle direct date
-                date = str(date_or_year)
-                year = date[:4]
-            
             # Get files for the week
             url = f"{self.GITHUB_API_URL}/{year}/{date}"
             response = requests.get(url)
@@ -292,16 +274,29 @@ class TidyTuesdayPy:
                         "path": item["path"]
                     })
             
-            # Get README content - try main branch first, then fall back to master
-            readme_url = f"{self.RAW_GITHUB_URL_MAIN}/{year}/{date}/README.md"
-            readme_response = requests.get(readme_url)
+            # Get README content - try different URL patterns
+            readme_urls = [
+                f"{self.RAW_GITHUB_URL_REFS_MAIN}/{year}/{date}/readme.md",  # refs/heads/main with lowercase readme
+                f"{self.RAW_GITHUB_URL_REFS_MAIN}/{year}/{date}/README.md",  # refs/heads/main with uppercase README
+                f"{self.RAW_GITHUB_URL_MAIN}/{year}/{date}/readme.md",       # main with lowercase readme
+                f"{self.RAW_GITHUB_URL_MAIN}/{year}/{date}/README.md",       # main with uppercase README
+                f"{self.RAW_GITHUB_URL_MASTER}/{year}/{date}/readme.md",     # master with lowercase readme
+                f"{self.RAW_GITHUB_URL_MASTER}/{year}/{date}/README.md"      # master with uppercase README
+            ]
             
-            # If main branch doesn't work, try master branch
-            if readme_response.status_code != 200:
-                readme_url = f"{self.RAW_GITHUB_URL_MASTER}/{year}/{date}/README.md"
-                readme_response = requests.get(readme_url)
-                
-            readme_content = readme_response.text if readme_response.status_code == 200 else ""
+            readme_response = None
+            readme_url = None
+            
+            for url in readme_urls:
+                print(f"Trying to fetch README from: {url}")
+                response = requests.get(url)
+                if response.status_code == 200:
+                    readme_response = response
+                    readme_url = url
+                    print(f"Successfully fetched README from: {url}")
+                    break
+            
+            readme_content = readme_response.text if readme_response is not None else ""
             
             # Create HTML version of README for display
             readme_html = self._markdown_to_html(readme_content)
@@ -318,96 +313,116 @@ class TidyTuesdayPy:
             print(f"Error: {e}")
             return {}
     
-    def tt_download_file(self, tt_data: Dict[str, Any], file_identifier: Union[str, int], verbose: bool = True) -> pd.DataFrame:
+    def tt_download_file(self, date: str, file_name: str, save_to_disk: bool = True, verbose: bool = True) -> Optional[pd.DataFrame]:
         """
-        Download a specific file from a TidyTuesday dataset.
+        Download a specific file from a TidyTuesday dataset by date.
         
         Args:
-            tt_data: TidyTuesday metadata from tt_load_gh
-            file_identifier: Either the file name or index (0-based)
+            date: Date string in YYYY-MM-DD format
+            file_name: Name of the file to download
+            save_to_disk: Whether to save the file to disk
             verbose: If True, print download progress
             
         Returns:
-            A pandas DataFrame with the file contents
+            A pandas DataFrame with the file contents if save_to_disk is False,
+            otherwise None (file is saved to disk)
         """
-        if not tt_data or "files" not in tt_data:
+        # Get dataset metadata
+        metadata = self._get_dataset_metadata(date)
+        
+        if not metadata or "files" not in metadata:
             if verbose:
-                print("Invalid TidyTuesday data. Use tt_load_gh first.")
-            return pd.DataFrame()
+                print(f"No dataset found for date {date}")
+            return None
         
         try:
-            files = tt_data["files"]
-            if isinstance(file_identifier, int):
-                if file_identifier < 0 or file_identifier >= len(files):
-                    if verbose:
-                        print(f"File index {file_identifier} is out of range")
-                    return pd.DataFrame()
-                file_info = files[file_identifier]
-            else:
-                file_info = next((f for f in files if f["name"] == file_identifier), None)
-                if not file_info:
-                    if verbose:
-                        print(f"File '{file_identifier}' not found")
-                    return pd.DataFrame()
+            # Find the file
+            file_info = next((f for f in metadata["files"] if f["name"] == file_name), None)
+            if not file_info:
+                if verbose:
+                    print(f"File '{file_name}' not found in dataset for {date}")
+                    print("Available files:")
+                    for f in metadata["files"]:
+                        print(f"  {f['name']}")
+                return None
             
             if verbose:
                 print(f"Downloading {file_info['name']}...")
+            
             response = requests.get(file_info["download_url"])
             response.raise_for_status()
             
-            file_name = file_info["name"].lower()
-            with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1]) as tmp:
-                tmp.write(response.content)
-                tmp_path = tmp.name
+            file_name_lower = file_info["name"].lower()
             
-            try:
-                if file_name.endswith('.csv'):
-                    df = pd.read_csv(tmp_path)
-                elif file_name.endswith('.tsv'):
-                    df = pd.read_csv(tmp_path, sep='\t')
-                elif file_name.endswith(('.xls', '.xlsx')):
-                    df = pd.read_excel(tmp_path)
-                elif file_name.endswith('.json'):
-                    df = pd.read_json(tmp_path)
-                elif file_name.endswith('.parquet'):  # Added support
-                    df = pd.read_parquet(tmp_path)
-                else:
-                    if verbose:
-                        print(f"Unsupported file format: {file_name}")
-                    return pd.DataFrame()
-            finally:
-                os.unlink(tmp_path)
-            
-            if verbose:
-                print(f"Successfully loaded {file_info['name']}")
-            return df
+            if save_to_disk:
+                # Save to disk
+                with open(file_info["name"], "wb") as f:
+                    f.write(response.content)
+                
+                if verbose:
+                    print(f"Successfully saved {file_info['name']} to {os.path.abspath(file_info['name'])}")
+                return None
+            else:
+                # Return as DataFrame
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name_lower)[1]) as tmp:
+                    tmp.write(response.content)
+                    tmp_path = tmp.name
+                
+                try:
+                    if file_name_lower.endswith('.csv'):
+                        df = pd.read_csv(tmp_path)
+                    elif file_name_lower.endswith('.tsv'):
+                        df = pd.read_csv(tmp_path, sep='\t')
+                    elif file_name_lower.endswith(('.xls', '.xlsx')):
+                        df = pd.read_excel(tmp_path)
+                    elif file_name_lower.endswith('.json'):
+                        df = pd.read_json(tmp_path)
+                    elif file_name_lower.endswith('.parquet'):
+                        df = pd.read_parquet(tmp_path)
+                    else:
+                        if verbose:
+                            print(f"Unsupported file format: {file_name_lower}")
+                        return None
+                finally:
+                    os.unlink(tmp_path)
+                
+                if verbose:
+                    print(f"Successfully loaded {file_info['name']}")
+                return df
             
         except requests.exceptions.RequestException as e:
             if verbose:
                 print(f"Error downloading file: {e}")
-            return pd.DataFrame()
+            return None
         except pd.errors.ParserError as e:
             if verbose:
                 print(f"Error parsing file: {e}")
-            return pd.DataFrame()
+            return None
     
-    def tt_download(self, tt_data: Dict[str, Any], files: Union[str, List[str]] = "All") -> Dict[str, pd.DataFrame]:
+    def tt_download(self, date: str, files: Union[str, List[str]] = "All", save_to_disk: bool = True, verbose: bool = True) -> Optional[Dict[str, pd.DataFrame]]:
         """
-        Download all or specific files from a TidyTuesday dataset.
+        Download files from a TidyTuesday dataset by date.
         
         Args:
-            tt_data: TidyTuesday metadata from tt_load_gh
+            date: Date string in YYYY-MM-DD format
             files: Either "All" to download all files, or a list of file names
+            save_to_disk: Whether to save the files to disk
+            verbose: If True, print download progress
             
         Returns:
-            Dictionary mapping file names to pandas DataFrames
+            Dictionary mapping file names to pandas DataFrames if save_to_disk is False,
+            otherwise None (files are saved to disk)
         """
-        if not tt_data or "files" not in tt_data:
-            print("Invalid TidyTuesday data. Use tt_load_gh first.")
-            return {}
+        # Get dataset metadata
+        metadata = self._get_dataset_metadata(date)
+        
+        if not metadata or "files" not in metadata:
+            if verbose:
+                print(f"No dataset found for date {date}")
+            return None
         
         try:
-            available_files = tt_data["files"]
+            available_files = metadata["files"]
             
             if files == "All":
                 files_to_download = available_files
@@ -422,107 +437,107 @@ class TidyTuesdayPy:
                         files_to_download.append(file_info)
                     else:
                         print(f"Warning: File '{file_name}' not found")
+                        print("Available files:")
+                        for f in available_files:
+                            print(f"  {f['name']}")
             
-            result = {}
-            for file_info in files_to_download:
-                file_name = file_info["name"]
-                print(f"Downloading {file_name}...")
-                
-                response = requests.get(file_info["download_url"])
-                
-                if response.status_code != 200:
-                    print(f"Error downloading {file_name}: {response.status_code}")
-                    continue
-                
-                # Save to a temporary file first
-                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1]) as tmp:
-                    tmp.write(response.content)
-                    tmp_path = tmp.name
-                
-                # Read the file based on its extension
-                file_name_lower = file_name.lower()
-                try:
-                    if file_name_lower.endswith('.csv'):
-                        df = pd.read_csv(tmp_path)
-                    elif file_name_lower.endswith('.tsv'):
-                        df = pd.read_csv(tmp_path, sep='\t')
-                    elif file_name_lower.endswith(('.xls', '.xlsx')):
-                        df = pd.read_excel(tmp_path)
-                    elif file_name_lower.endswith('.json'):
-                        df = pd.read_json(tmp_path)
-                    else:
-                        print(f"Unsupported file format: {file_name}")
+            if save_to_disk:
+                # Save files to disk
+                for file_info in files_to_download:
+                    file_name = file_info["name"]
+                    if verbose:
+                        print(f"Downloading {file_name}...")
+                    
+                    response = requests.get(file_info["download_url"])
+                    
+                    if response.status_code != 200:
+                        print(f"Error downloading {file_name}: {response.status_code}")
                         continue
                     
-                    # Store in result dictionary, using the name without extension as the key
-                    key = os.path.splitext(file_name)[0]
-                    result[key] = df
-                    print(f"Successfully loaded {file_name}")
+                    with open(file_name, "wb") as f:
+                        f.write(response.content)
                     
-                except Exception as e:
-                    print(f"Error processing {file_name}: {e}")
+                    if verbose:
+                        print(f"Successfully saved {file_name} to {os.path.abspath(file_name)}")
                 
-                finally:
-                    # Clean up temporary file
-                    os.unlink(tmp_path)
-            
-            return result
+                return None
+            else:
+                # Return as DataFrames
+                result = {}
+                for file_info in files_to_download:
+                    file_name = file_info["name"]
+                    if verbose:
+                        print(f"Downloading {file_name}...")
+                    
+                    response = requests.get(file_info["download_url"])
+                    
+                    if response.status_code != 200:
+                        print(f"Error downloading {file_name}: {response.status_code}")
+                        continue
+                    
+                    # Save to a temporary file first
+                    file_name_lower = file_name.lower()
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name_lower)[1]) as tmp:
+                        tmp.write(response.content)
+                        tmp_path = tmp.name
+                    
+                    # Read the file based on its extension
+                    try:
+                        if file_name_lower.endswith('.csv'):
+                            df = pd.read_csv(tmp_path)
+                        elif file_name_lower.endswith('.tsv'):
+                            df = pd.read_csv(tmp_path, sep='\t')
+                        elif file_name_lower.endswith(('.xls', '.xlsx')):
+                            df = pd.read_excel(tmp_path)
+                        elif file_name_lower.endswith('.json'):
+                            df = pd.read_json(tmp_path)
+                        elif file_name_lower.endswith('.parquet'):
+                            df = pd.read_parquet(tmp_path)
+                        else:
+                            print(f"Unsupported file format: {file_name}")
+                            continue
+                        
+                        # Store in result dictionary, using the name without extension as the key
+                        key = os.path.splitext(file_name)[0]
+                        result[key] = df
+                        if verbose:
+                            print(f"Successfully loaded {file_name}")
+                        
+                    except Exception as e:
+                        print(f"Error processing {file_name}: {e}")
+                    
+                    finally:
+                        # Clean up temporary file
+                        os.unlink(tmp_path)
+                
+                return result
             
         except Exception as e:
             print(f"Error downloading files: {e}")
-            return {}
+            return None
     
-    def tt_load(self, date_or_year: Union[str, int], week: Optional[int] = None, 
-                files: Union[str, List[str]] = "All") -> Dict[str, Any]:
+    def readme(self, date: str) -> None:
         """
-        Load TidyTuesday data from GitHub.
+        Display the README for a TidyTuesday dataset by date.
         
         Args:
-            date_or_year: Either a date string (YYYY-MM-DD) or a year (YYYY)
-            week: If date_or_year is a year, which week number to use
-            files: Either "All" to download all files, or a list of file names
-            
-        Returns:
-            Dictionary with the downloaded data and metadata
+            date: Date string in YYYY-MM-DD format
         """
-        # First get the metadata
-        tt_data = self.tt_load_gh(date_or_year, week)
+        # Get dataset metadata
+        metadata = self._get_dataset_metadata(date)
         
-        if not tt_data:
-            return {}
-        
-        # Then download the data
-        data = self.tt_download(tt_data, files)
-        
-        # Combine metadata and data
-        result = {
-            "date": tt_data["date"],
-            "year": tt_data["year"],
-            "readme_content": tt_data["readme_content"],
-            "readme_html": tt_data["readme_html"],
-            **data  # Add all the dataframes
-        }
-        
-        return result
-    
-    def readme(self, tt_data: Dict[str, Any]) -> None:
-        """
-        Display the README for a TidyTuesday dataset.
-        
-        Args:
-            tt_data: TidyTuesday data from tt_load or tt_load_gh
-        """
-        if not tt_data or "readme_html" not in tt_data:
-            print("No README available for this dataset.")
+        if not metadata or "readme_html" not in metadata or not metadata["readme_content"]:
+            print(f"No README available for dataset {date}")
             return
         
         # Create a temporary HTML file and open it in the browser
         with tempfile.NamedTemporaryFile(delete=False, suffix='.html', mode='w') as tmp:
-            tmp.write(tt_data["readme_html"])
+            tmp.write(metadata["readme_html"])
             tmp_path = tmp.name
         
         webbrowser.open(f"file://{tmp_path}")
-        print(f"README opened in your browser.")
+        print(f"README for {date} opened in your browser.")
+        print(f"README content length: {len(metadata['readme_content'])} characters")
     
 
     def _markdown_to_html(self, markdown_text: str) -> str:
@@ -573,58 +588,52 @@ def tt_datasets(year):
     tt = TidyTuesdayPy()
     return tt.tt_datasets(year)
 
-def tt_load_gh(date_or_year, week=None):
-    """Load TidyTuesday metadata from GitHub."""
+def tt_download_file(date, file_name, save_to_disk=True):
+    """
+    Download a specific file from a TidyTuesday dataset by date.
+    
+    Args:
+        date: Date string in YYYY-MM-DD format
+        file_name: Name of the file to download
+        save_to_disk: Whether to save the file to disk (default: True)
+    
+    Returns:
+        If save_to_disk is True, None (file is saved to disk)
+        If save_to_disk is False, a pandas DataFrame with the file contents
+    """
     tt = TidyTuesdayPy()
-    return tt.tt_load_gh(date_or_year, week)
+    return tt.tt_download_file(date, file_name, save_to_disk)
 
-def tt_download_file(tt_data, file_identifier):
-    """Download a specific file from a TidyTuesday dataset."""
+def tt_download(date, files="All", save_to_disk=True):
+    """
+    Download files from a TidyTuesday dataset by date.
+    
+    Args:
+        date: Date string in YYYY-MM-DD format
+        files: Either "All" to download all files, or a list of file names
+        save_to_disk: Whether to save the files to disk (default: True)
+    
+    Returns:
+        If save_to_disk is True, None (files are saved to disk)
+        If save_to_disk is False, a dictionary mapping file names to pandas DataFrames
+    """
     tt = TidyTuesdayPy()
-    return tt.tt_download_file(tt_data, file_identifier)
+    return tt.tt_download(date, files, save_to_disk)
 
-def tt_download(tt_data, files="All"):
-    """Download all or specific files from a TidyTuesday dataset."""
+def readme(date):
+    """
+    Display the README for a TidyTuesday dataset by date.
+    
+    Args:
+        date: Date string in YYYY-MM-DD format
+    """
     tt = TidyTuesdayPy()
-    return tt.tt_download(tt_data, files)
-
-def tt_load(date_or_year, week=None, files="All"):
-    """Load TidyTuesday data from GitHub."""
-    tt = TidyTuesdayPy()
-    return tt.tt_load(date_or_year, week, files)
-
-def readme(tt_data):
-    """Display the README for a TidyTuesday dataset."""
-    tt = TidyTuesdayPy()
-    return tt.readme(tt_data)
+    return tt.readme(date)
 
 def rate_limit_check(quiet=False):
     """Check the GitHub API rate limit."""
     tt = TidyTuesdayPy()
     return tt.rate_limit_check(quiet)
-
-def get_date(week):
-    """
-    Takes a week in string form and downloads the TidyTuesday data files from the Github repo.
-    
-    Args:
-        week: Week in YYYY-MM-DD format
-    """
-    tt = TidyTuesdayPy()
-    data = tt.tt_load(week)
-    return data
-
-def get_week(year, week_num):
-    """
-    Takes a year and a week number, and downloads the TidyTuesday data files from the Github repo.
-    
-    Args:
-        year: Year (YYYY)
-        week_num: Week number (1-based)
-    """
-    tt = TidyTuesdayPy()
-    data = tt.tt_load(year, week=week_num)
-    return data
 
 
 def cli():
@@ -672,81 +681,42 @@ Arguments:
 Examples:
   pydytuesday tt_datasets 2025
 """,
-        "tt_load_gh": """
-Usage: pydytuesday tt_load_gh <date_or_year> [week]
-
-Load TidyTuesday metadata from GitHub.
-
-Arguments:
-  date_or_year    Required. Either a date string (YYYY-MM-DD) or a year (YYYY).
-  week            Optional. If date_or_year is a year, which week number to use.
-
-Examples:
-  pydytuesday tt_load_gh 2025-03-10
-  pydytuesday tt_load_gh 2025 3
-""",
         "tt_download_file": """
-Usage: pydytuesday tt_download_file <tt_data> <file_identifier>
+Usage: pydytuesday tt_download_file <date> <file_name>
 
-Download a specific file from a TidyTuesday dataset.
-Note: This command requires data loaded with tt_load_gh first.
+Download a specific file from a TidyTuesday dataset by date.
 
 Arguments:
-  tt_data           Required. TidyTuesday metadata from tt_load_gh.
-  file_identifier   Required. Either the file name or index (0-based).
+  date        Required. Date string in YYYY-MM-DD format.
+  file_name   Required. Name of the file to download.
 
 Examples:
-  # First load metadata, then download a file
-  data = pydytuesday tt_load_gh 2025-03-10
-  pydytuesday tt_download_file "$data" data.csv
-  pydytuesday tt_download_file "$data" 0
+  pydytuesday tt_download_file 2025-03-10 data.csv
 """,
         "tt_download": """
-Usage: pydytuesday tt_download <tt_data> [files]
+Usage: pydytuesday tt_download <date> [files]
 
-Download all or specific files from a TidyTuesday dataset.
-Note: This command requires data loaded with tt_load_gh first.
-
-Arguments:
-  tt_data    Required. TidyTuesday metadata from tt_load_gh.
-  files      Optional. Either "All" to download all files, or a list of file names.
-             Defaults to "All".
-
-Examples:
-  # First load metadata, then download files
-  data = pydytuesday tt_load_gh 2025-03-10
-  pydytuesday tt_download "$data" All
-  pydytuesday tt_download "$data" data.csv summary.json
-""",
-        "tt_load": """
-Usage: pydytuesday tt_load <date_or_year> [week] [files]
-
-Load TidyTuesday data from GitHub.
+Download all or specific files from a TidyTuesday dataset by date.
 
 Arguments:
-  date_or_year    Required. Either a date string (YYYY-MM-DD) or a year (YYYY).
-  week            Optional. If date_or_year is a year, which week number to use.
-  files           Optional. Either "All" to download all files, or a list of file names.
-                  Defaults to "All".
+  date     Required. Date string in YYYY-MM-DD format.
+  files    Optional. Either "All" to download all files, or a list of file names.
+           Defaults to "All".
 
 Examples:
-  pydytuesday tt_load 2025-03-10
-  pydytuesday tt_load 2025 3 All
-  pydytuesday tt_load 2025 3 data.csv
+  pydytuesday tt_download 2025-03-10
+  pydytuesday tt_download 2025-03-10 data.csv summary.json
 """,
         "readme": """
-Usage: pydytuesday readme <tt_data>
+Usage: pydytuesday readme <date>
 
-Display the README for a TidyTuesday dataset.
-Note: This command requires data loaded with tt_load_gh or tt_load first.
+Display the README for a TidyTuesday dataset by date.
 
 Arguments:
-  tt_data    Required. TidyTuesday data from tt_load or tt_load_gh.
+  date    Required. Date string in YYYY-MM-DD format.
 
 Examples:
-  # First load data, then display README
-  data = pydytuesday tt_load_gh 2025-03-10
-  pydytuesday readme "$data"
+  pydytuesday readme 2025-03-10
 """,
         "rate_limit_check": """
 Usage: pydytuesday rate_limit_check [quiet]
@@ -759,29 +729,6 @@ Arguments:
 Examples:
   pydytuesday rate_limit_check
   pydytuesday rate_limit_check True
-""",
-        "get_date": """
-Usage: pydytuesday get_date <week>
-
-Takes a week in string form and downloads the TidyTuesday data files from the Github repo.
-
-Arguments:
-  week    Required. Week in YYYY-MM-DD format.
-
-Examples:
-  pydytuesday get_date 2025-03-10
-""",
-        "get_week": """
-Usage: pydytuesday get_week <year> <week_num>
-
-Takes a year and a week number, and downloads the TidyTuesday data files from the Github repo.
-
-Arguments:
-  year       Required. Year (YYYY).
-  week_num   Required. Week number (1-based).
-
-Examples:
-  pydytuesday get_week 2025 3
 """
     }
     
@@ -795,14 +742,10 @@ Examples:
         print("  last_tuesday     - Find the most recent Tuesday relative to a date")
         print("  tt_available     - List all available TidyTuesday datasets")
         print("  tt_datasets      - List datasets for a specific year")
-        print("  tt_load_gh       - Load TidyTuesday metadata from GitHub")
         print("  tt_download_file - Download a specific file from a dataset")
         print("  tt_download      - Download all or specific files from a dataset")
-        print("  tt_load          - Load TidyTuesday data from GitHub")
         print("  readme           - Display the README for a dataset")
         print("  rate_limit_check - Check the GitHub API rate limit")
-        print("  get_date         - Get data for a specific week by date")
-        print("  get_week         - Get data for a specific week by year and week number")
         print("\nFor more information on a specific command, run:")
         print("  pydytuesday <command> --help")
         sys.exit(1)
@@ -822,14 +765,10 @@ Examples:
         "last_tuesday": last_tuesday,
         "tt_available": tt_available,
         "tt_datasets": tt_datasets,
-        "tt_load_gh": tt_load_gh,
         "tt_download_file": tt_download_file,
         "tt_download": tt_download,
-        "tt_load": tt_load,
         "readme": readme,
         "rate_limit_check": rate_limit_check,
-        "get_date": get_date,
-        "get_week": get_week,
     }
     
     # Also support commands with dashes instead of underscores
