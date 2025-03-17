@@ -15,18 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-hello = "pydytuesday:hello"
-last-tuesday = "pydytuesday:last_tuesday"
-tt-available = "pydytuesday:tt_available"
-tt-datasets = "pydytuesday:tt_datasets"
-tt-load-gh = "pydytuesday:tt_load_gh"
-tt-download-file = "pydytuesday:tt_download_file"
-tt-download = "pydytuesday:tt_download"
-tt-load = "pydytuesday:tt_load"
-readme = "pydytuesday:readme"
-rate-limit = "pydytuesday:rate_limit_check"
-get-date = "pydytuesday:get_date"
-get-week = "pydytuesday:get_week"
+pydytuesday = "pydytuesday.__main__:cli"
 
 [build-system]
 requires = ["hatchling"]

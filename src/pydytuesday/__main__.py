@@ -563,3 +563,70 @@ def get_week(year, week_num):
     tt = TidyTuesdayPy()
     data = tt.tt_load(year, week=week_num)
     return data
+
+
+def cli():
+    """
+    Command-line interface dispatcher for pydytuesday.
+    
+    This function parses command-line arguments and routes them to the appropriate function.
+    It allows running commands like: pydytuesday last_tuesday [args]
+    """
+    import sys
+    
+    if len(sys.argv) < 2:
+        print("Usage: pydytuesday <command> [arguments]")
+        print("\nAvailable commands:")
+        print("  last_tuesday     - Find the most recent Tuesday relative to a date")
+        print("  tt_available     - List all available TidyTuesday datasets")
+        print("  tt_datasets      - List datasets for a specific year")
+        print("  tt_load_gh       - Load TidyTuesday metadata from GitHub")
+        print("  tt_download_file - Download a specific file from a dataset")
+        print("  tt_download      - Download all or specific files from a dataset")
+        print("  tt_load          - Load TidyTuesday data from GitHub")
+        print("  readme           - Display the README for a dataset")
+        print("  rate_limit_check - Check the GitHub API rate limit")
+        print("  get_date         - Get data for a specific week by date")
+        print("  get_week         - Get data for a specific week by year and week number")
+        sys.exit(1)
+    
+    cmd = sys.argv[1]
+    args = sys.argv[2:]
+    
+    # Map command names to functions
+    commands = {
+        "last_tuesday": last_tuesday,
+        "tt_available": tt_available,
+        "tt_datasets": tt_datasets,
+        "tt_load_gh": tt_load_gh,
+        "tt_download_file": tt_download_file,
+        "tt_download": tt_download,
+        "tt_load": tt_load,
+        "readme": readme,
+        "rate_limit_check": rate_limit_check,
+        "get_date": get_date,
+        "get_week": get_week,
+    }
+    
+    # Also support commands with dashes instead of underscores
+    dash_commands = {cmd.replace('_', '-'): func for cmd, func in commands.items()}
+    commands.update(dash_commands)
+    
+    if cmd in commands:
+        try:
+            result = commands[cmd](*args)
+            # If the function returns a value, print it
+            if result is not None:
+                print(result)
+        except TypeError as e:
+            print(f"Error: {e}")
+            print(f"Check the arguments for the '{cmd}' command.")
+            sys.exit(1)
+    else:
+        print(f"Unknown command: {cmd}")
+        print("Available commands:", ", ".join(sorted(set(commands.keys()))))
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    cli()
