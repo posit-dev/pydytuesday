@@ -635,6 +635,38 @@ def rate_limit_check(quiet=False):
     tt = TidyTuesdayPy()
     return tt.rate_limit_check(quiet)
 
+def get_date(week):
+    """
+    Takes a week in string form and downloads the TidyTuesday data files from the Github repo.
+    
+    Args:
+        week: Week in YYYY-MM-DD format
+    """
+    return tt_download(week)
+
+def get_week(year, week_num):
+    """
+    Takes a year and a week number, and downloads the TidyTuesday data files from the Github repo.
+    
+    Args:
+        year: Year (YYYY)
+        week_num: Week number (1-based)
+    """
+    # Get list of weeks for the year
+    tt = TidyTuesdayPy()
+    datasets = tt.tt_datasets(year, print_output=False)
+    if not datasets:
+        print(f"No datasets found for year {year}")
+        return None
+    
+    if week_num < 1 or week_num > len(datasets):
+        print(f"Week number {week_num} is out of range for year {year}")
+        return None
+    
+    # Adjust for 0-based indexing
+    date = datasets[week_num - 1]["date"]
+    return tt_download(date)
+
 
 def cli():
     """

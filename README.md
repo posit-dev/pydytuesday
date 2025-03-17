@@ -106,9 +106,11 @@ Once you have installed the library using uv, you should be able to run your com
     pydytuesday rate-limit-check
     ```
 
-## Example Workflow
+## Example Workflows
 
-Here's a complete example of how to discover, download, and explore TidyTuesday data:
+### Command-line Workflow
+
+Here's a complete example of how to discover, download, and explore TidyTuesday data using the command-line interface:
 
 ```bash
 # 1. Find the most recent Tuesday date
@@ -146,6 +148,34 @@ plt.show()
 ```
 
 This workflow demonstrates how to use the command-line tools to discover and download data, and then use pandas to analyze the downloaded data.
+
+### Python Library Workflow
+
+You can also use PyDyTuesday as a Python library directly in your code:
+
+```python
+# Option 1: Use PyDyTuesday to download files
+import PyDyTuesday
+
+# Download all files from a specific week
+PyDyTuesday.get_date('2025-03-18')
+# This will save all files from the 2025-03-18 dataset to your current directory
+
+# Download files from a specific week by year and week number
+PyDyTuesday.get_week(2025, 3)
+# This will download all files from the 3rd week of 2025
+
+# Option 2: Read directly from GitHub
+import pandas as pd
+
+# Read a CSV file directly from GitHub without downloading
+palmtrees = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data/2025/2025-03-18/palmtrees.csv')
+
+# Analyze the data
+print(palmtrees.head())
+```
+
+This workflow demonstrates how to use PyDyTuesday as a Python library to download data or read it directly from GitHub.
 
 ## Contributing
 
