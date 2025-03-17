@@ -188,6 +188,38 @@ Contributions are welcome! Here’s how you can help improve PidyTuesday:
 
 For larger contributions, consider discussing your ideas by opening an issue first so that we can provide guidance before you start coding.
 
+## Example Workflow
+
+Here's a complete example of how to discover, download, and explore TidyTuesday data:
+
+```bash
+# 1. Find the most recent Tuesday date
+pydytuesday last-tuesday
+# Output: 2025-03-11
+
+# 2. List available datasets for a specific year
+pydytuesday tt-datasets 2025
+# Output: Lists all datasets for 2025 with dates and titles
+
+# 3. Load metadata for a specific dataset
+data=$(pydytuesday tt-load-gh 2025-03-11)
+
+# 4. View the README for the dataset
+pydytuesday readme "$data"
+# This will open the README in your default web browser
+
+# 5. Download all files from the dataset
+pydytuesday tt-download "$data" All
+
+# 6. Or download a specific file
+pydytuesday tt-download-file "$data" "example.csv"
+
+# 7. Alternatively, load and download in one step
+all_data=$(pydytuesday tt-load 2025-03-11)
+```
+
+This workflow demonstrates how the commands work together to provide a complete data exploration experience.
+
 ## License
 
 This project is licensed under MIT as per the [LICENSE](LICENSE) file.

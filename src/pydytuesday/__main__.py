@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
 import pytz
 import markdown
+from bs4 import BeautifulSoup
 
 import requests
 import pandas as pd
@@ -17,7 +18,8 @@ class TidyTuesdayPy:
     """Main class for TidyTuesdayPy package."""
     
     GITHUB_API_URL = "https://api.github.com/repos/rfordatascience/tidytuesday/contents/data"
-    RAW_GITHUB_URL = "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data"
+    RAW_GITHUB_URL_MASTER = "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data"
+    RAW_GITHUB_URL_MAIN = "https://raw.githubusercontent.com/rfordatascience/tidytuesday/main/data"
     
     def __init__(self):
         """Initialize the TidyTuesdayPy class."""
@@ -138,35 +140,89 @@ class TidyTuesdayPy:
         
         try:
             year = str(year)
-            url = f"{self.GITHUB_API_URL}/{year}"
-            response = requests.get(url)
-            response.raise_for_status()
-            data = response.json()
-            folders = [item for item in data if item["type"] == "dir"]
             
-            datasets = []
-            for folder in folders:
-                week_name = folder["name"]
-                if re.match(r"^\d{4}-\d{2}-\d{2}$", week_name):
-                    date = week_name
-                    readme_url = f"{self.RAW_GITHUB_URL}/{year}/{date}/README.md"
-                    try:
-                        readme_response = requests.get(readme_url)
-                        title = "Unknown"
-                        if readme_response.status_code == 200:
-                            readme_content = readme_response.text
-                            title_match = re.search(r"#\s+(.*?)(?:\n|$)", readme_content)
-                            if title_match:
-                                title = title_match.group(1).strip()
-                    except requests.exceptions.RequestException:
-                        title = "Unknown"  # Fallback if README fetch fails
+            # First try to get the HTML version of the year's main readme.md file
+            # Note: GitHub uses 'main' as the default branch name now, not 'master'
+            html_url = f"https://github.com/rfordatascience/tidytuesday/blob/main/data/{year}/readme.md"
+            try:
+                html_response = requests.get(html_url)
+                
+                # If 'main' branch doesn't work, try 'master' branch as fallback
+                if html_response.status_code != 200:
+                    html_url = f"https://github.com/rfordatascience/tidytuesday/blob/master/data/{year}/readme.md"
+                    html_response = requests.get(html_url)
+                
+                datasets = []
+                
+                if html_response.status_code == 200:
+                    # Parse the HTML with BeautifulSoup
+                    soup = BeautifulSoup(html_response.text, 'html.parser')
                     
-                    datasets.append({
-                        "date": date,
-                        "title": title,
-                        "path": f"{year}/{date}"
-                    })
+                    # Find the table in the readme
+                    tables = soup.find_all('table')
+                    if tables:
+                        # Get the first table
+                        table = tables[0]
+                        
+                        # Extract rows from the table
+                        rows = table.find_all('tr')
+                        
+                        # Skip the header row
+                        for row in rows[1:]:
+                            cells = row.find_all(['td', 'th'])
+                            
+                            # Make sure we have enough cells
+                            if len(cells) >= 3:
+                                # Extract date and title
+                                date_cell = cells[1].text.strip()
+                                title_cell = cells[2].text.strip()
+                                
+                                # Make sure date is in the correct format
+                                if re.match(r"^\d{4}-\d{2}-\d{2}$", date_cell):
+                                    datasets.append({
+                                        "date": date_cell,
+                                        "title": title_cell,
+                                        "path": f"{year}/{date_cell}"
+                                    })
+                
+                # If no datasets found from HTML parsing, fall back to API
+                if not datasets:
+                    url = f"{self.GITHUB_API_URL}/{year}"
+                    response = requests.get(url)
+                    response.raise_for_status()
+                    data = response.json()
+                    folders = [item for item in data if item["type"] == "dir"]
+                    
+                    for folder in folders:
+                        week_name = folder["name"]
+                        if re.match(r"^\d{4}-\d{2}-\d{2}$", week_name):
+                            date = week_name
+                            datasets.append({
+                                "date": date,
+                                "title": "Unknown",  # Default title
+                                "path": f"{year}/{date}"
+                            })
             
+            except requests.exceptions.RequestException:
+                # Fallback to API if HTML parsing fails
+                url = f"{self.GITHUB_API_URL}/{year}"
+                response = requests.get(url)
+                response.raise_for_status()
+                data = response.json()
+                folders = [item for item in data if item["type"] == "dir"]
+                
+                datasets = []
+                for folder in folders:
+                    week_name = folder["name"]
+                    if re.match(r"^\d{4}-\d{2}-\d{2}$", week_name):
+                        date = week_name
+                        datasets.append({
+                            "date": date,
+                            "title": "Unknown",  # Default title
+                            "path": f"{year}/{date}"
+                        })
+            
+            # Sort datasets by date
             datasets.sort(key=lambda x: x["date"])
             
             if print_output:
@@ -236,9 +292,15 @@ class TidyTuesdayPy:
                         "path": item["path"]
                     })
             
-            # Get README content
-            readme_url = f"{self.RAW_GITHUB_URL}/{year}/{date}/README.md"
+            # Get README content - try main branch first, then fall back to master
+            readme_url = f"{self.RAW_GITHUB_URL_MAIN}/{year}/{date}/README.md"
             readme_response = requests.get(readme_url)
+            
+            # If main branch doesn't work, try master branch
+            if readme_response.status_code != 200:
+                readme_url = f"{self.RAW_GITHUB_URL_MASTER}/{year}/{date}/README.md"
+                readme_response = requests.get(readme_url)
+                
             readme_content = readme_response.text if readme_response.status_code == 200 else ""
             
             # Create HTML version of README for display
@@ -463,17 +525,17 @@ class TidyTuesdayPy:
         print(f"README opened in your browser.")
     
 
-    def _markdown_to_html(self, markdown: str) -> str:
+    def _markdown_to_html(self, markdown_text: str) -> str:
         """
         Convert markdown to HTML.
         
         Args:
-            markdown: Markdown text
+            markdown_text: Markdown text
             
         Returns:
             HTML representation of the markdown
         """
-        html = markdown.markdown(markdown)
+        html = markdown.markdown(markdown_text)
         full_html = f"""
         <!DOCTYPE html>
         <html>
@@ -574,6 +636,159 @@ def cli():
     """
     import sys
     
+    # Help text for each command
+    help_text = {
+        "last_tuesday": """
+Usage: pydytuesday last_tuesday [date]
+
+Find the most recent Tuesday relative to a specified date.
+
+Arguments:
+  date    Optional. A date string in YYYY-MM-DD format. Defaults to today's date in New York time.
+
+Examples:
+  pydytuesday last_tuesday
+  pydytuesday last_tuesday 2025-03-10
+""",
+        "tt_available": """
+Usage: pydytuesday tt_available
+
+List all available TidyTuesday datasets across all years.
+
+This command fetches data from the TidyTuesday GitHub repository and displays
+a list of all available datasets organized by year.
+
+Examples:
+  pydytuesday tt_available
+""",
+        "tt_datasets": """
+Usage: pydytuesday tt_datasets <year>
+
+List available TidyTuesday datasets for a specific year.
+
+Arguments:
+  year    Required. The year to get datasets for (e.g., 2025).
+
+Examples:
+  pydytuesday tt_datasets 2025
+""",
+        "tt_load_gh": """
+Usage: pydytuesday tt_load_gh <date_or_year> [week]
+
+Load TidyTuesday metadata from GitHub.
+
+Arguments:
+  date_or_year    Required. Either a date string (YYYY-MM-DD) or a year (YYYY).
+  week            Optional. If date_or_year is a year, which week number to use.
+
+Examples:
+  pydytuesday tt_load_gh 2025-03-10
+  pydytuesday tt_load_gh 2025 3
+""",
+        "tt_download_file": """
+Usage: pydytuesday tt_download_file <tt_data> <file_identifier>
+
+Download a specific file from a TidyTuesday dataset.
+Note: This command requires data loaded with tt_load_gh first.
+
+Arguments:
+  tt_data           Required. TidyTuesday metadata from tt_load_gh.
+  file_identifier   Required. Either the file name or index (0-based).
+
+Examples:
+  # First load metadata, then download a file
+  data = pydytuesday tt_load_gh 2025-03-10
+  pydytuesday tt_download_file "$data" data.csv
+  pydytuesday tt_download_file "$data" 0
+""",
+        "tt_download": """
+Usage: pydytuesday tt_download <tt_data> [files]
+
+Download all or specific files from a TidyTuesday dataset.
+Note: This command requires data loaded with tt_load_gh first.
+
+Arguments:
+  tt_data    Required. TidyTuesday metadata from tt_load_gh.
+  files      Optional. Either "All" to download all files, or a list of file names.
+             Defaults to "All".
+
+Examples:
+  # First load metadata, then download files
+  data = pydytuesday tt_load_gh 2025-03-10
+  pydytuesday tt_download "$data" All
+  pydytuesday tt_download "$data" data.csv summary.json
+""",
+        "tt_load": """
+Usage: pydytuesday tt_load <date_or_year> [week] [files]
+
+Load TidyTuesday data from GitHub.
+
+Arguments:
+  date_or_year    Required. Either a date string (YYYY-MM-DD) or a year (YYYY).
+  week            Optional. If date_or_year is a year, which week number to use.
+  files           Optional. Either "All" to download all files, or a list of file names.
+                  Defaults to "All".
+
+Examples:
+  pydytuesday tt_load 2025-03-10
+  pydytuesday tt_load 2025 3 All
+  pydytuesday tt_load 2025 3 data.csv
+""",
+        "readme": """
+Usage: pydytuesday readme <tt_data>
+
+Display the README for a TidyTuesday dataset.
+Note: This command requires data loaded with tt_load_gh or tt_load first.
+
+Arguments:
+  tt_data    Required. TidyTuesday data from tt_load or tt_load_gh.
+
+Examples:
+  # First load data, then display README
+  data = pydytuesday tt_load_gh 2025-03-10
+  pydytuesday readme "$data"
+""",
+        "rate_limit_check": """
+Usage: pydytuesday rate_limit_check [quiet]
+
+Check the GitHub API rate limit.
+
+Arguments:
+  quiet    Optional. If True, don't print rate limit info. Defaults to False.
+
+Examples:
+  pydytuesday rate_limit_check
+  pydytuesday rate_limit_check True
+""",
+        "get_date": """
+Usage: pydytuesday get_date <week>
+
+Takes a week in string form and downloads the TidyTuesday data files from the Github repo.
+
+Arguments:
+  week    Required. Week in YYYY-MM-DD format.
+
+Examples:
+  pydytuesday get_date 2025-03-10
+""",
+        "get_week": """
+Usage: pydytuesday get_week <year> <week_num>
+
+Takes a year and a week number, and downloads the TidyTuesday data files from the Github repo.
+
+Arguments:
+  year       Required. Year (YYYY).
+  week_num   Required. Week number (1-based).
+
+Examples:
+  pydytuesday get_week 2025 3
+"""
+    }
+    
+    # Add dash versions of the help text
+    dash_help_text = {cmd.replace('_', '-'): text for cmd, text in help_text.items()}
+    help_text.update(dash_help_text)
+    
     if len(sys.argv) < 2:
         print("Usage: pydytuesday <command> [arguments]")
         print("\nAvailable commands:")
@@ -588,9 +803,18 @@ def cli():
         print("  rate_limit_check - Check the GitHub API rate limit")
         print("  get_date         - Get data for a specific week by date")
         print("  get_week         - Get data for a specific week by year and week number")
+        print("\nFor more information on a specific command, run:")
+        print("  pydytuesday <command> --help")
         sys.exit(1)
     
     cmd = sys.argv[1]
+    
+    # Check for help flag
+    if len(sys.argv) > 2 and sys.argv[2] == "--help":
+        if cmd in help_text:
+            print(help_text[cmd])
+            sys.exit(0)
+    
     args = sys.argv[2:]
     
     # Map command names to functions
@@ -614,6 +838,8 @@ def cli():
     
     if cmd in commands:
         try:
+            # Remove --help flag if present
+            args = [arg for arg in args if arg != "--help"]
             result = commands[cmd](*args)
             # If the function returns a value, print it
             if result is not None:
@@ -621,10 +847,13 @@ def cli():
         except TypeError as e:
             print(f"Error: {e}")
             print(f"Check the arguments for the '{cmd}' command.")
+            print(f"Run 'pydytuesday {cmd} --help' for usage information.")
             sys.exit(1)
     else:
         print(f"Unknown command: {cmd}")
         print("Available commands:", ", ".join(sorted(set(commands.keys()))))
+        print("\nFor more information on a specific command, run:")
+        print("  pydytuesday <command> --help")
         sys.exit(1)
 
 
