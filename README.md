@@ -16,14 +16,12 @@ PidyTuesday is a Python library that ports the functionality of the TidyTuesday 
 
 We make extensive use of uv and uv tools to enable command-line scripts without too much managing of virtual environments.
 
-Please note the **PyPi library is case sensitive** - you must use **PyDyTuesday**.
-
 1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 2. Install PyDyTuesday to your commandline by using `uv tool install`
 
    ```bash
-   uv tool install PyDyTuesday
+   uv tool install pydytuesday
 
    pydytuesday last-tuesday
    ```
@@ -31,11 +29,11 @@ Please note the **PyPi library is case sensitive** - you must use **PyDyTuesday*
 Alternatively, you can use `uv tool` or `uvx` to avoid adding the command to your path.
 
    ```bash
-   uv tool PyDyTuesday last-tuesday
+   uv tool pydytuesday last-tuesday
    ```
    or using uvx:
    ```bash
-   uvx PyDyTuesday last-tuesday
+   uvx pydytuesday last-tuesday
    ```
 
 ### Using pip
