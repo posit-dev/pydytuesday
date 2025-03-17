@@ -6,4 +6,6 @@ from .__main__ import (
     tt_download,
     readme,
     rate_limit_check,
+    get_date,
+    get_week,
 )
