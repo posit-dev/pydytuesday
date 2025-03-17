@@ -1,0 +1,23 @@
+[project]
+name = "pydytuesday"
+version = "0.1.0"
+description = "A Python port of the TidyTuesday Downloader"
+authors = [
+  {name = "Andreas Varotsis", email = "andreas.varotsis@gmail.com"},
+]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "beautifulsoup4>=4.13.3",
+    "markdown>=3.7",
+    "pandas>=2.2.3",
+    "pytz>=2025.1",
+    "requests>=2.32.3",
+]
+
+[project.scripts]
+pydytuesday = "pydytuesday.__main__:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
