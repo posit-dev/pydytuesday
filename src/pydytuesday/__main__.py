@@ -1,10 +1,3 @@
-"""
-TidyTuesdayPy: Access the Weekly 'TidyTuesday' Project Dataset in Python
-
-This package provides tools to easily download data from the TidyTuesday project,
-a weekly data project by the Data Science Learning Community.
-"""
-
 import os
 import re
 import json
