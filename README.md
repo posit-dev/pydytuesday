@@ -10,7 +10,7 @@ PidyTuesday is a Python library that ports the functionality of the TidyTuesday 
 - **Display dataset README:** Open the dataset's README in your web browser.
 - **Check GitHub API rate limits:** Monitor your GitHub API usage.
 
-## Usage
+## Installation
 
 ### Using uv (recommended)
 
@@ -18,7 +18,16 @@ We make extensive use of uv and uv tools to enable command-line scripts without 
 
 1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-2. Run your desired command using either 
+2. Install PyDyTuesday to your commandline by using `uv tool install`
+
+   ```bash
+   uv tool install pydytuesday
+
+   pydytuesday last-tuesday
+   ```
+
+Alternatively, you can use `uv tool` or `uvx` to avoid adding the command to your path.
+
    ```bash
    uv tool pydytuesday last-tuesday
    ```
@@ -47,16 +56,16 @@ Alternatively, you can install the library directly into your environment using 
    ```
    (Consult your system’s documentation on how entry points are installed if you encounter issues.)
 
-### CLI Commands
+## Usage
 
-From the root of the project directory, you can run the following commands. Where the command takes arguments, additional examples are provided.
+Once you have installed the library using uv, you should be able to run your commands from anywhere on your system.
 
 - **Last Tuesday**
   - **Description:** Prints the most recent Tuesday date relative to today's date or an optionally provided date.
   - **Usage:**
     ```bash
-    uvx pydytuesday last-tuesday
-    uvx pydytuesday last-tuesday 2025-03-10
+    pydytuesday last-tuesday
+    pydytuesday last-tuesday 2025-03-10
     ```
     (The second example passes a specific date argument in YYYY-MM-DD format.)
 
@@ -64,14 +73,14 @@ From the root of the project directory, you can run the following commands. Wher
   - **Description:** Lists all available TidyTuesday datasets.
   - **Usage:**
     ```bash
-    uvx pydytuesday tt-available
+    pydytuesday tt-available
     ```
 
 - **TidyTuesday Datasets**
   - **Description:** Lists datasets for a specific year.
   - **Usage:**
     ```bash
-    uvx pydytuesday tt-datasets 2025
+    pydytuesday tt-datasets 2025
     ```
     (Example passes the year as an argument.)
 
@@ -79,8 +88,8 @@ From the root of the project directory, you can run the following commands. Wher
   - **Description:** Loads TidyTuesday metadata from GitHub for a given date or year.
   - **Usage:**
     ```bash
-    uvx pydytuesday tt-load-gh 2025-03-10
-    uvx pydytuesday tt-load-gh 2025 3
+    pydytuesday tt-load-gh 2025-03-10
+    pydytuesday tt-load-gh 2025 3
     ```
     (The first example uses a date string; the second example uses a year and a week number.)
 
@@ -88,8 +97,8 @@ From the root of the project directory, you can run the following commands. Wher
   - **Description:** Downloads a specified file from a TidyTuesday dataset.
   - **Usage:**
     ```bash
-    uvx pydytuesday tt-download-file data.csv
-    uvx pydytuesday tt-download-file 0
+    pydytuesday tt-download-file data.csv
+    pydytuesday tt-download-file 0
     ```
     (The first example passes the file name; the second example passes the file index.)
 
@@ -97,8 +106,8 @@ From the root of the project directory, you can run the following commands. Wher
   - **Description:** Downloads all or selected files from a TidyTuesday dataset.
   - **Usage:**
     ```bash
-    uvx pydytuesday tt-download All
-    uvx pydytuesday tt-download data.csv summary.json
+    pydytuesday tt-download All
+    pydytuesday tt-download data.csv summary.json
     ```
     (Example shows using "All" or a list of specific file names.)
 
@@ -106,8 +115,8 @@ From the root of the project directory, you can run the following commands. Wher
   - **Description:** Loads the entire TidyTuesday dataset, including metadata and files.
   - **Usage:**
     ```bash
-    uvx pydytuesday tt-load 2025-03-10
-    uvx pydytuesday tt-load 2025 3 All
+    pydytuesday tt-load 2025-03-10
+    pydytuesday tt-load 2025 3 All
     ```
     (The first example uses a date string; the second example uses a year, week number, and optionally file selection.)
 
@@ -115,28 +124,28 @@ From the root of the project directory, you can run the following commands. Wher
   - **Description:** Opens the README for a TidyTuesday dataset in your default web browser.
   - **Usage:**
     ```bash
-    uvx pydytuesday readme
+    pydytuesday readme
     ```
 
 - **Check GitHub Rate Limit**
   - **Description:** Checks the remaining GitHub API rate limit.
   - **Usage:**
     ```bash
-    uvx pydytuesday rate-limit
+    pydytuesday rate-limit
     ```
 
 - **Get Data by Date**
   - **Description:** Retrieves data for a specific week given as a date string.
   - **Usage:**
     ```bash
-    uvx pydytuesday get-date 2025-03-10
+    pydytuesday get-date 2025-03-10
     ```
 
 - **Get Data by Week Number**
   - **Description:** Retrieves data for a specified week number within a given year.
   - **Usage:**
     ```bash
-    uvx pydytuesday get-week 2025 3
+    pydytuesday get-week 2025 3
     ```
     (The command takes a year and a week number as arguments.)
 
