@@ -40,21 +40,11 @@ Alternatively, you can use `uv tool` or `uvx` to avoid adding the command to you
 
 Alternatively, you can install the library directly into your environment using pip.
 
-1. Install the package (preferably in editable mode during development):
    ```bash
-   pip install -e .
+   pip install pydytuesday
+
+   pydytuesday last-tuesday
    ```
-   
-2. Once installed, the CLI commands defined in the package (via the `[project.scripts]` section in `pyproject.toml`) will be automatically added to your PATH. This means you can run the commands directly from your terminal. For example:
-   ```bash
-   last-tuesday
-   tt-available
-   ```
-   If the commands are not directly available in your PATH, you may invoke them using Python's module execution:
-   ```bash
-   python -m pydytuesday
-   ```
-   (Consult your system's documentation on how entry points are installed if you encounter issues.)
 
 ## Usage
 
