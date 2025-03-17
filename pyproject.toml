@@ -1,6 +1,6 @@
 [project]
 name = "pydytuesday"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Python port of the TidyTuesday Downloader"
 authors = [
   {name = "Andreas Varotsis", email = "andreas.varotsis@gmail.com"},
