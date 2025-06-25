@@ -1,6 +1,6 @@
-# PidyTuesday
+# PydyTuesday
 
-PidyTuesday is a Python library that ports the functionality of the TidyTuesday CRAN package to Python. It provides a suite of command-line tools for accessing and downloading TidyTuesday datasets hosted on GitHub.
+PydyTuesday is a Python library that ports the functionality of the TidyTuesday CRAN package to Python. It provides a suite of command-line tools for accessing and downloading TidyTuesday datasets hosted on GitHub.
 
 ## Features
 
