@@ -1,11 +1,11 @@
-# PydyTuesday
+# pydytuesday
 
-PydyTuesday is a Python library that ports the functionality of the TidyTuesday CRAN package to Python. It provides a suite of command-line tools for accessing and downloading TidyTuesday datasets hosted on GitHub.
+pydytuesday is a Python library that ports some of the functionality of the tidytuesdayR CRAN package to Python. It provides a way to download TidyTuesday datasets hosted on GitHub.
 
 **Note! This repo is under construction 🚧 The information below may not be up-to-date!**  
 
 ## Features
-
+<!-- -->
 - **Get the most recent Tuesday date:** Useful for aligning with TidyTuesday releases.
 - **List available datasets:** Discover available TidyTuesday datasets across years.
 - **Download datasets:** Retrieve individual files or complete datasets.
@@ -20,7 +20,7 @@ We make extensive use of uv and uv tools to enable command-line scripts without 
 
 1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-2. Install PyDyTuesday to your commandline by using `uv tool install`
+2. Install pydytuesday to your commandline by using `uv tool install`
 
    ```bash
    uv tool install pydytuesday
@@ -153,18 +153,18 @@ This workflow demonstrates how to use the command-line tools to discover and dow
 
 ### Python Library Workflow
 
-You can also use PyDyTuesday as a Python library directly in your code:
+You can also use pydytuesday as a Python library directly in your code:
 
 ```python
-# Option 1: Use PyDyTuesday to download files
-import PyDyTuesday
+# Option 1: Use pydytuesday to download files
+import pydytuesday
 
 # Download all files from a specific week
-PyDyTuesday.get_date('2025-03-18')
+pydytuesday.get_date('2025-03-18')
 # This will save all files from the 2025-03-18 dataset to your current directory
 
 # Download files from a specific week by year and week number
-PyDyTuesday.get_week(2025, 3)
+pydytuesday.get_week(2025, 3)
 # This will download all files from the 3rd week of 2025
 
 # Option 2: Read directly from GitHub
@@ -177,7 +177,7 @@ palmtrees = pd.read_csv('https://raw.githubusercontent.com/rfordatascience/tidyt
 print(palmtrees.head())
 ```
 
-This workflow demonstrates how to use PyDyTuesday as a Python library to download data or read it directly from GitHub.
+This workflow demonstrates how to use pydytuesday as a Python library to download data or read it directly from GitHub.
 
 ## Contributing
 
