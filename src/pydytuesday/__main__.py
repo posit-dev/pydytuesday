@@ -1,10 +1,8 @@
 import os
 import re
-import json
 import datetime
 import tempfile
 import webbrowser
-from pathlib import Path
 from typing import Dict, List, Optional, Union, Any
 import pytz
 import markdown
@@ -399,7 +397,7 @@ class TidyTuesdayPy:
                 print(f"Error parsing file: {e}")
             return None
     
-    def tt_download(self, date: str, files: Union[str, List[str]] = "All", save_to_disk: bool = True, verbose: bool = True) -> Optional[Dict[str, pd.DataFrame]]:
+    def tt_download(self, date: str, files: Union[str, List[str]] = "All", save_to_disk: bool = True, verbose: bool = True, file_path: Optional[str] = None) -> Optional[Dict[str, pd.DataFrame]]:
         """
         Download files from a TidyTuesday dataset by date.
         
@@ -408,6 +406,7 @@ class TidyTuesdayPy:
             files: Either "All" to download all files, or a list of file names
             save_to_disk: Whether to save the files to disk
             verbose: If True, print download progress
+            file_path: Optional path to save downloaded files
             
         Returns:
             Dictionary mapping file names to pandas DataFrames if save_to_disk is False,
@@ -454,11 +453,12 @@ class TidyTuesdayPy:
                         print(f"Error downloading {file_name}: {response.status_code}")
                         continue
                     
-                    with open(file_name, "wb") as f:
+                    save_path = os.path.join(file_path, file_name) if file_path is not None else file_name
+                    with open(save_path, "wb") as f:
                         f.write(response.content)
                     
                     if verbose:
-                        print(f"Successfully saved {file_name} to {os.path.abspath(file_name)}")
+                        print(f"Successfully saved {file_name} to {os.path.abspath(save_path)}")
                 
                 return None
             else:
@@ -604,21 +604,21 @@ def tt_download_file(date, file_name, save_to_disk=True):
     tt = TidyTuesdayPy()
     return tt.tt_download_file(date, file_name, save_to_disk)
 
-def tt_download(date, files="All", save_to_disk=True):
+def tt_download(date, files="All", save_to_disk=True, file_path=None):
     """
-    Download files from a TidyTuesday dataset by date.
-    
+    Wrapper to download files from a TidyTuesday dataset by date.
+
     Args:
         date: Date string in YYYY-MM-DD format
-        files: Either "All" to download all files, or a list of file names
-        save_to_disk: Whether to save the files to disk (default: True)
-    
+        files: "All" or list of file names
+        save_to_disk: Whether to save to disk
+        file_path: Optional path to save the files
+
     Returns:
-        If save_to_disk is True, None (files are saved to disk)
-        If save_to_disk is False, a dictionary mapping file names to pandas DataFrames
+        None or dict of DataFrames
     """
     tt = TidyTuesdayPy()
-    return tt.tt_download(date, files, save_to_disk)
+    return tt.tt_download(date, files, save_to_disk, file_path=file_path)
 
 def readme(date):
     """
@@ -635,22 +635,24 @@ def rate_limit_check(quiet=False):
     tt = TidyTuesdayPy()
     return tt.rate_limit_check(quiet)
 
-def get_date(week):
+def get_date(week, file_path=None):
     """
     Takes a week in string form and downloads the TidyTuesday data files from the Github repo.
-    
+
     Args:
         week: Week in YYYY-MM-DD format
+        file_path: Optional path to save downloaded files
     """
-    return tt_download(week)
+    return tt_download(week, file_path=file_path)
 
-def get_week(year, week_num):
+def get_week(year, week_num, file_path=None):
     """
     Takes a year and a week number, and downloads the TidyTuesday data files from the Github repo.
-    
+
     Args:
         year: Year (YYYY)
         week_num: Week number (1-based)
+        file_path: Optional path to save downloaded files
     """
     # Get list of weeks for the year
     tt = TidyTuesdayPy()
@@ -658,14 +660,13 @@ def get_week(year, week_num):
     if not datasets:
         print(f"No datasets found for year {year}")
         return None
-    
+
     if week_num < 1 or week_num > len(datasets):
         print(f"Week number {week_num} is out of range for year {year}")
         return None
-    
-    # Adjust for 0-based indexing
+
     date = datasets[week_num - 1]["date"]
-    return tt_download(date)
+    return tt_download(date, file_path=file_path)
 
 
 def cli():
